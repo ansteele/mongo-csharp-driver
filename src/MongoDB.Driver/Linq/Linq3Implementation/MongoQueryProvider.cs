@@ -16,11 +16,13 @@
 using System;
 using System.Linq;
 using System.Linq.Expressions;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using MongoDB.Bson.Serialization;
 using MongoDB.Driver.Linq;
 using MongoDB.Driver.Linq.Linq3Implementation.Translators.ExpressionToExecutableQueryTranslators;
+using MongoDB.Driver.Support;
 
 namespace MongoDB.Driver.Linq.Linq3Implementation
 {
@@ -77,7 +79,18 @@ namespace MongoDB.Driver.Linq.Linq3Implementation
         // public methods
         public override IQueryable CreateQuery(Expression expression)
         {
-            throw new NotImplementedException();
+            var elementType = expression.Type.GetSequenceElementType();
+
+            try
+            {
+                return (IQueryable)Activator.CreateInstance(
+                    typeof(MongoQuery<,>).MakeGenericType(typeof(TDocument), elementType),
+                    new object[] { this, expression });
+            }
+            catch (TargetInvocationException tie)
+            {
+                throw tie.InnerException;
+            }
         }
 
         public override IQueryable<TOutput> CreateQuery<TOutput>(Expression expression)
